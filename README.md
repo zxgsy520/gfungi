@@ -7,4 +7,6 @@ Common fungal introns are 60-80bp in length. If the fungal intron length reaches
 Denovo predicts that the intron length of the gene is too long. Solution:
 
 (1)、Identify the species through 18S, go to Augustus to find if there is a trained model of the same species or the same genus.Use the trained model to re-predict.
-(2)、Retrain the model.
+(2)、Retrain the model. Use gff_filter.py to filter the files of the training model. Retrain the model after filtering.
+example:
+gff_filter.py trainset.aug.gtf --cds 2 --min_cds 500 --max_cds 4000 --cds_exon 0.5  >trainset.aug_new.gtf
