@@ -29,7 +29,7 @@ def read_fastq(file):
 
     seq = []
     for line in fp:
-        if type(line) == type(b''):
+        if isinstance(line, bytes):
             line = line.decode('utf-8')
         line = line.strip()
 
