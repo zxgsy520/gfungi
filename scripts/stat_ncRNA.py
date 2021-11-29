@@ -1,84 +1,129 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 import sys
-import argparse
 import logging
+import argparse
+
+from collections import OrderedDict
+
 
 LOG = logging.getLogger(__name__)
-
-__version__ = "20191223"
-__author__ = ("Liu huifang",)
-__email__ = "liuhuifang@grandomics.com"
+__version__ = "1.1.1"
+__author__ = ("Xingguo Zhang",)
+__email__ = "invicoun@foxmail.com"
 __all__ = []
 
 
-def stat_genome_length(file):
-    total = 0
-    for line in open(file, 'r'):
+def stat_genome_size(file):
+
+    base = 0
+
+    for line in open(file):
+
         if line.startswith(">"):
             continue
-        total += len(line.strip())
-    return total
+
+        base += len(line.strip())
+
+    return base
 
 
-def stat_gff(args):
-    genome_length = stat_genome_length(args.genome)
-    stat = {'ncRNA': [0, 0], 'regulatory': [0, 0], 'rRNA': [0, 0], 'tRNA': [0, 0]}
-    rrna = {'18S': [0, 0], "28S": [0, 0], '5.8S': [0, 0], '5S': [0, 0]}
-    srna = {'snRNA': [0, 0], 'miRNA': [0, 0], 'spliceosomal': [0, 0], 'other': [0, 0]}
-    for line in open(args.gff, 'r'):
-        if line.startswith('#'):
+def read_tsv(file, sep=None):
+
+    for line in open(file):
+        line = line.strip()
+
+        if not line or line.startswith("#"):
             continue
-        sp1 = line.strip().split()
-        sp2 = line.strip().split('product=')
-        stat[sp1[2]][0] += 1
-        stat[sp1[2]][1] += int(sp1[4]) - int(sp1[3]) + 1
-        if sp1[2] == 'rRNA':
-            rrna[sp2[-1].split()[0]][0] += 1
-            rrna[sp2[-1].split()[0]][1] += int(sp1[4]) - int(sp1[3]) + 1
-        if sp1[2] == 'ncRNA':
-            if 'microRNA' in sp2[-1]:
-                srna['miRNA'][0] += 1
-                srna['miRNA'][1] += int(sp1[4]) - int(sp1[3]) + 1
-            elif 'Small nucleolar RNA' in sp2[-1]:
-                srna['snRNA'][0] += 1
-                srna['snRNA'][1] += int(sp1[4]) - int(sp1[3]) + 1
-            elif 'spliceosomal' in sp2[1]:
-                srna['spliceosomal'][0] += 1
-                srna['spliceosomal'][1] += int(sp1[4]) - int(sp1[3]) + 1
-            else:
-                srna['other'][0] += 1
-                srna['other'][1] += int(sp1[4]) - int(sp1[3]) + 1
 
-    f_out = open('%s.ncRNA.stat' % args.p, 'w')
-    f_out.write('#Type\tNumber\tAverage_length(bp)\tTotal_length(bp)\tPercentage(%)\n')
-    for k, v in stat.items():
-        if int(v[0]) > 0:
-            f_out.write('{rnatype}\t{number:,}\t{ave_len:,.2f}\t{total_len:,}\t{percent:.4f}\n'.format(
-                rnatype=k, number=int(v[0]), ave_len=float(v[1])/float(v[0]), total_len=int(v[1]), percent=100 * float(v[1])/float(genome_length)
-            ))
+        yield line.split(sep)
+
+
+def split_attr(attributes):
+
+    r ={}
+
+    for content in attributes.split(';'):
+        if not content:
+            continue
+        if '=' not in content:
+            print('%r is not a good formated attribute: no tag!')
+            continue
+        tag, value = content.split('=', 1)
+        r[tag] = value
+
+    return r
+
+
+def stat_ncRNA(gff, genome):
+
+    rna_dict = OrderedDict()
+    rna_dict["regulatory"] = {"all": [0, 0]}
+    rna_dict["tRNA"] = {"all": [0, 0]}
+    rna_dict["rRNA"] = {"18S": [0, 0], "28S": [0, 0], "5.8S": [0, 0],
+                        "5S": [0, 0], "all": [0, 0]}
+    rna_dict["ncRNA"] = {"snRNA": [0, 0], "miRNA": [0, 0], "all": [0, 0],
+                         "spliceosomal": [0, 0], "other": [0, 0]}
+
+    genome_size = stat_genome_size(genome)
+
+    for line in read_tsv(gff, "\t"):
+        start, end = int(line[3]), int(line[4])
+        if line[2] in rna_dict:
+            rna_dict[line[2]]["all"][0] += 1
+            rna_dict[line[2]]["all"][1] += end-start+1
+
+        attr = split_attr(line[-1])
+        if line[2] == "rRNA":
+            rrnatype = attr["product"].split()[0]
+            if rrnatype in rna_dict["rRNA"]:
+                rna_dict["rRNA"][rrnatype][0] += 1
+                rna_dict["rRNA"][rrnatype][1] += end-start+1
+        elif line[2] == "ncRNA":
+            if "microRNA" in attr["product"]:
+                rna_dict["ncRNA"]['miRNA'][0] += 1
+                rna_dict["ncRNA"]['miRNA'][1] += end-start+1
+            elif 'mall nucleolar RNA' in attr["product"]:
+                rna_dict["ncRNA"]['snRNA'][0] += 1
+                rna_dict["ncRNA"]['snRNA'][1] += end-start+1
+            elif 'spliceosomal' in attr["product"]:
+                rna_dict["ncRNA"]['spliceosomal'][0] += 1
+                rna_dict["ncRNA"]['spliceosomal'][1] += end-start+1
+            else:
+                rna_dict["ncRNA"]['other'][0] += 1
+                rna_dict["ncRNA"]['other'][1] += end-start+1
         else:
-            f_out.write('%s\t0\t0\t0\t0\n' % k)
-    f_out.write('\n#rRNA_stat:\n')
-    for k, v in rrna.items():
-        if int(v[0]) > 0:
-            f_out.write('{rnatype}\t{number:,}\t{ave_len:,.2f}\t{total_len:,}\t{percent:.4f}\n'.format(
-                rnatype=k, number=int(v[0]), ave_len=float(v[1])/float(v[0]), total_len=int(v[1]), percent=100 * float(v[1])/float(genome_length)
-            ))
-        else:
-            f_out.write('%s\t0\t0\t0\t0\n' % k)
-    f_out.write('\n#ncRNA_stat:\n')
-    for k, v in srna.items():
-        if int(v[0]) > 0:
-            f_out.write('{rnatype}\t{number:,}\t{ave_len:,.2f}\t{total_len:,}\t{percent:.4f}\n'.format(
-                rnatype=k, number=int(v[0]), ave_len=float(v[1])/float(v[0]), total_len=int(v[1]), percent=100 * float(v[1])/float(genome_length)
-            ))
-        else:
-            f_out.write('%s\t0\t0\t0\t0\n' % k)
-    f_out.close()
+            continue
+
+    print("#Types\tType\tNumber\tAverage length(bp)\tTotal length(bp)\tPercentage(%)")
+    for i in rna_dict:
+        for j in rna_dict[i]:
+            number, total = rna_dict[i][j]
+            average = 0
+            if number:
+                average = total*1.0/number
+
+            print("{0}\t{1}\t{2:,}\t{3:,.2f}\t{4:,}\t{5:.4f}".format(
+                i, j, number, average, total, total*100.0/genome_size)
+            )
+
+
+    return 0
+
+
+def add_help_args(parser):
+
+    parser.add_argument('gff',  metavar='FILE', type=str,
+        help='Input RNA annotation results (gff).')
+    parser.add_argument('-g', '--genome',  metavar='FILE', type=str, required=True,
+        help='Input genome file (fasta).')
+
+    return parser
 
 
 def main():
+
     logging.basicConfig(
         stream=sys.stderr,
         level=logging.INFO,
@@ -88,20 +133,16 @@ def main():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description='''
-        stat ncRNA result
+name:
+    stat_ncRNA: stat ncRNA result.
+attention:
+    stat_ncRNA RNA.gff -g genome.fasta >stat_ncRNA.tsv
 version: %s
 contact:  %s <%s>\
     ''' % (__version__, " ".join(__author__), __email__))
 
-    parser.add_argument('-gff', required=True,
-                        help='gff, such as *ncRNA.gff3')
-    parser.add_argument('-genome',required=True,
-                        help='genome fasta')
-    parser.add_argument('-p', default='result',
-                        help='prefix of output')
-    args = parser.parse_args()
-
-    stat_gff(args)
+    args = add_help_args(parser).parse_args()
+    stat_ncRNA(args.gff, args.genome)
 
 
 if __name__ == "__main__":
