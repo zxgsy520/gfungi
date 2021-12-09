@@ -1,6 +1,7 @@
 # gfungi
 Assembly annotation process for fungi
 ## Requirements
+### Software
 * [Python](https://www.python.org/)
 * * Three-party python package
   * [matplotlib](https://matplotlib.org/)
@@ -12,7 +13,8 @@ Assembly annotation process for fungi
 * [PASA](https://github.com/PASApipeline/PASApipeline/)
 * [BRAKER2](https://github.com/Gaius-Augustus/BRAKER)
 * [Augustus](https://github.com/Gaius-Augustus/Augustus)
-
+### Database
+* [UniVec](https://ftp.ncbi.nih.gov/pub/UniVec/)
 
 
 
