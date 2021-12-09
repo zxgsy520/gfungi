@@ -8,6 +8,7 @@ Assembly annotation process for fungi
 * [STAR](https://github.com/alexdobin/STAR)
 * [stringtie](https://ccb.jhu.edu/software/stringtie/)
 * [gffread](https://github.com/gpertea/gffread)
+* [seqclean](https://sourceforge.net/projects/seqclean/files/)
 * [PASA](https://github.com/PASApipeline/PASApipeline/)
 * [BRAKER2](https://github.com/Gaius-Augustus/BRAKER)
 * [Augustus](https://github.com/Gaius-Augustus/Augustus)
