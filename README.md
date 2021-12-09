@@ -11,6 +11,7 @@ Assembly annotation process for fungi
 * [gffread](https://github.com/gpertea/gffread)
 * [seqclean](https://sourceforge.net/projects/seqclean/files/)
 * [PASA](https://github.com/PASApipeline/PASApipeline/)
+* [gmst](https://github.com/ConesaLab/SQANTI3)
 * [BRAKER2](https://github.com/Gaius-Augustus/BRAKER)
 * [Augustus](https://github.com/Gaius-Augustus/Augustus)
 ### Database
