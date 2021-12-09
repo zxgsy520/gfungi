@@ -7,8 +7,11 @@ Assembly annotation process for fungi
   * [numpy](https://numpy.org/doc/stable/index.html)
 * [STAR](https://github.com/alexdobin/STAR)
 * [stringtie](https://ccb.jhu.edu/software/stringtie/)
+* [gffread](https://github.com/gpertea/gffread)
+* [PASA](https://github.com/PASApipeline/PASApipeline/)
 * [BRAKER2](https://github.com/Gaius-Augustus/BRAKER)
 * [Augustus](https://github.com/Gaius-Augustus/Augustus)
+
 
 
 
