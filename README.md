@@ -1,5 +1,17 @@
 # gfungi
 Assembly annotation process for fungi
+## Requirements
+* [Python](https://www.python.org/)
+* * Three-party python package
+  * [matplotlib](https://matplotlib.org/)
+  * [numpy](https://numpy.org/doc/stable/index.html)
+* [STAR](https://github.com/alexdobin/STAR)
+* [stringtie](https://ccb.jhu.edu/software/stringtie/)
+* [BRAKER2](https://github.com/Gaius-Augustus/BRAKER)
+* [Augustus](https://github.com/Gaius-Augustus/Augustus)
+
+
+
 ## Summary of Fungus Annotation Questions
 ### Long intron length
 
