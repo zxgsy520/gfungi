@@ -15,6 +15,8 @@ Assembly annotation process for fungi
 * [BRAKER2](https://github.com/Gaius-Augustus/BRAKER)
 * [Augustus](https://github.com/Gaius-Augustus/Augustus)
 * [blast+](https://ftp.ncbi.nih.gov/blast/executables/LATEST/)
+* [blast]()
+* [blast-legacy]()
 * [GeMoMa](http://www.jstacs.de/index.php/GeMoMa)
 * [EVM](http://evidencemodeler.github.io/)
 ### Database
