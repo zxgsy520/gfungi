@@ -3,6 +3,7 @@
 
 import os
 import sys
+import json
 import logging
 import argparse
 
@@ -52,21 +53,24 @@ STAR --runMode genomeGenerate --genomeDir {work_dir}/index \\
     return task, os.path.join(work_dir, "index")
 
 
-def create_star_tasks(genome, reads1, reads2, index, work_dir,
+def create_star_tasks(genome, reads1, reads2, index, job_type, work_dir,
                       threads=8, trim=5, qvalue=20):
 
-    if len(prefixs) != len(reads1):
-        prefixs = []
-        n = 0
-        for i in reads1:
-            n += 1
-            i = os.path.basename(i)
-            i = i.split(".")[0]
-            if i in prefixs:
-                i = "%s_%s" % (i, n)
-            prefixs.append(i)
-
+   
     id = "star"
+    id_format = "%s_{:0>%s}" % (id, len(str(len(reads1))))
+    bams = []
+    prefixs = []
+    n = 0
+    for i in reads1:
+        n += 1
+        i = os.path.basename(i)
+        i = i.split(".")[0]
+        if i in prefixs:
+            i = "%s_%s" % (i, n)
+        prefixs.append(i)
+        bams.append(os.path.join(work_dir, "%s/Aligned.sortedByCoord.out.bam" % id_format.format(n)))
+
     tasks = ParallelTask(
         id=id,
         work_dir="%s/{id}" % work_dir,
@@ -80,12 +84,12 @@ fastp -i {{reads1}} -I {{reads2}} \\
 -q {qvalue} --json fastp.json --html fastp.html
 export PATH={star}:$PATH
 STAR --runThreadN {threads} --genomeDir {index} \\
-  -readFilesIn {{prefixs}}.clean.r1.fq.gz {{prefix}}.clean.r2.fq.gz\\
+  --readFilesIn {{prefixs}}.clean.r1.fq.gz {{prefixs}}.clean.r2.fq.gz\\
   --readFilesCommand zcat  --outWigType bedGraph  --outSAMtype BAM  SortedByCoordinate  --outSAMstrandField intronMotif
 
 #export PATH={samtools}:$PATH
-#samtools view --threads {threads} -Sb Aligned.sortedByCoord.out.bam | samtools sort --threads {threads} -m 4G -o {{prefix}}.sorted.bam
-#rm {{prefix}}.clean.r*.fq.gz
+#samtools view --threads {threads} -Sb Aligned.sortedByCoord.out.bam | samtools sort --threads {threads} -m 4G -o {{prefixs}}.sorted.bam
+#rm {{prefixs}}.clean.r*.fq.gz
 """.format(fastp=FASTP_BIN,
            star=STAR_BIN,
            samtools=SAMTOOLS_BIN,
@@ -99,14 +103,14 @@ STAR --runThreadN {threads} --genomeDir {index} \\
     )
 
     join_task = Task(
-        id="merge_star" % id,
+        id="merge_star",
         work_dir=work_dir,
         type=job_type,
         option="-pe smp 1 %s" % QUEUE,
         script="""
 export PATH={samtools}:$PATH
-samtools merge -f -c --threads {threads} Aligned.bam */Aligned.sortedByCoord.out.bam
-samtools --threads {threads} -m 4G -o Aligned.sorted.bam Aligned.bam
+samtools merge --threads {threads} -h {bam1} Aligned.bam {bams}
+samtools sort --threads {threads} -m 4G -n Aligned.bam -o Aligned.sorted.bam
 export PATH={augustus}:$PATH
 filterBam --uniq --in Aligned.sorted.bam  --out Aligned.clean.bam
 bam2hints --intronsonly --in=Aligned.clean.bam --out=introns.gff
@@ -116,12 +120,17 @@ perl {script}/filterIntronsFindStrand.pl {genome} introns.gff --score > introns.
            augustus=AUGUSTUS_BIN,
            script=SCRIPTS,
            genome=genome,
+           bam1=bams[0],
+           bams=" ".join(bams),
+           threads=threads
            )
     )
 
     join_task.set_upstream(*tasks)
+    bam = os.path.join(work_dir, "Aligned.sorted.bam")
+    gff = os.path.join(work_dir, "introns.f.gff")
 
-    return tasks, join_task, os.path.join(work_dir, "Aligned.sorted.bam")
+    return tasks, join_task, bam, gff
 
 
 def run_star(genome, reads1, reads2, job_type, work_dir,
@@ -153,11 +162,12 @@ def run_star(genome, reads1, reads2, job_type, work_dir,
     )
     dag.add_task(index_task)
 
-    star_tasks, join_task, bam = create_star_tasks(
+    star_tasks, join_task, bam, gff = create_star_tasks(
         genome=genome,
         reads1=reads1,
         reads2=reads2,
         index=index,
+        job_type=job_type,
         work_dir=work_dir,
         threads=threads,
         trim=5,
@@ -169,12 +179,12 @@ def run_star(genome, reads1, reads2, job_type, work_dir,
 
     do_dag(dag, concurrent_tasks=concurrent, refresh_time=refresh)
 
-    return options
+    return options, bam, gff
 
 
 def star(args):
 
-    options = run_star(
+    options, bam, gff = run_star(
         genome=args.genome,
         reads1=args.reads1,
         reads2=args.reads2,
@@ -184,7 +194,7 @@ def star(args):
         refresh=args.refresh,
         work_dir=args.work_dir
     )
-    with open(os.path.join(args.out_dir, "star.json"), "w") as fh:
+    with open(os.path.join(args.work_dir, "star.json"), "w") as fh:
         json.dump(options, fh, indent=2)
 
     return 0
@@ -194,9 +204,9 @@ def add_hlep_args(parser):
 
     parser.add_argument("genome", metavar="STR", type=str,
         help="Input genome file(fata).")
-    parser.add_argument("-r1", "--read1", metavar="FILE", nargs='+', type=str, required=True,
+    parser.add_argument("-r1", "--reads1", metavar="FILE", nargs='+', type=str, required=True,
         help="Input the second-generation transcriptome data R1.")
-    parser.add_argument("-r2", "--read2", metavar="FILE", nargs='+', type=str, required=True,
+    parser.add_argument("-r2", "--reads2", metavar="FILE", nargs='+', type=str, required=True,
         help="Input the second-generation transcriptome data R2.")
     parser.add_argument("-t", "--threads", metavar="INT", type=int, default=4,
         help="Threads used to run stra (default: 4)")

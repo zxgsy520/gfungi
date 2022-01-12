@@ -78,7 +78,7 @@ def run_diamond(proteins, prefix, db, evalue, coverage, dbname,
     else:
         db = SWISSPORT
         dbname = "SwissProt"
-    if len(proteins) >= 2:
+    if len(proteins) <= 2:
         data = mkdir(os.path.join(work_dir, "00_data"))
         proteins = seq_split(proteins, mode="length", num=5000000, output_dir=data)
 
